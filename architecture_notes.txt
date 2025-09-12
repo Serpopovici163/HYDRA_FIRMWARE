@@ -1,0 +1,9 @@
+System common feature list:
+
+1. STM32 UUID Identity/determinic alias generation
+2. Board autoenumeration
+3. Dual CAN bus management (includes bus health monitoring, wake on CAN, and bus failure management)
+4. Standarized LED indication
+5. Software watchdog
+6. Standardized CAN communication (heartbeats, standardized error logging, decentralized sync protocol which includes GPS time, safe/panic mode, HW and FW version broadcast, command ack/nak)
+7. Decentralized state machine (to be discussed)
