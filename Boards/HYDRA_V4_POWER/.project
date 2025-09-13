@@ -29,4 +29,11 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>Common</name>
+			<type>2</type>
+			<location>C:/Users/Trololololol/Documents/Projects/1_HYDRA_PARENT/1_HYDRA_FIRMWARE/Common</location>
+		</link>
+	</linkedResources>
 </projectDescription>
