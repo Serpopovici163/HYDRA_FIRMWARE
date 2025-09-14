@@ -29,5 +29,3 @@ SystemState hydra_comm_get_system_degraded_state(void);
 /* RTOS Task Functions */
 void comm_tx_task(void *argument);
 void comm_rx_task(void *argument);
-
-#endif /* HYDRA_COMM_H */

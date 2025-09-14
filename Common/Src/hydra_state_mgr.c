@@ -13,14 +13,6 @@
 #include "queue.h"
 #include "timers.h"
 
-/* State transition request data */
-typedef struct {
-    uint8_t requester_alias;
-    SystemState requested_state;
-    uint8_t request_id;
-    uint32_t timeout_ticks;
-} StateRequest_t;
-
 /* Private variables */
 static SystemState current_state = SYSTEM_STATE_PREFLIGHT;
 static StateVote_t (*vote_callback)(SystemState) = NULL;

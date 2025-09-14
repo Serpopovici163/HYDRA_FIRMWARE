@@ -30,12 +30,7 @@ typedef enum {
     SYSTEM_STATE_COUNT
 } SystemState;
 
-/* State transition vote types */
-typedef enum {
-    VOTE_APPROVE = 0x00,
-    VOTE_VETO    = 0x01,
-    VOTE_ABSTAIN = 0x02
-} StateVote_t;
+#define MAX_STATE_REQ_ATTEMPTS 20 //Max number of state change request attempts before the initiator acts without confirmation from other boards.
 
 /* Public API */
 void hydra_state_mgr_init(void);

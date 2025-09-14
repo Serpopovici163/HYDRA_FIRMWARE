@@ -1,9 +1,9 @@
-#include "hydra_heartbeat.h"
 #include "hydra_events.h"
 #include "hydra_comm.h"
 #include "hydra_identity.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "hydra_health.h"
 
 #if defined(STM32G4xx)
     #include "stm32g4xx_hal.h" // Will be included by the G4 board's project
@@ -13,9 +13,8 @@
 
 // Private variables
 static uint16_t local_status_code = 0;
-static uint8_t known_board_count = 0;
 
-static BoardStatus_t status_table[MAX_BOARDS_IN_STACK];
+static BoardStatus_t status_table[MAX_BOARDS_IN_STACK]; //index 0 here will always be the local host
 static HeartbeatState_t heartbeat_state = HEARTBEAT_IDLE;
 
 static TimerHandle_t sync_timer;
@@ -25,7 +24,7 @@ static uint32_t response_window_start_time = 0;
 static uint8_t expected_responders = 0;
 
 // LED Configuration (stored after init)
-static HydraHeartbeatLedConfig_t led_cfg;
+static HydraLedConfig_t led_cfg;
 
 // Time Synchronization State
 static HydraTime_t system_time;
@@ -46,7 +45,7 @@ static void set_led_color(LedColor color);
 // Function to update our own time concept
 static void update_system_time(uint32_t new_seconds, uint32_t new_ms, TimeSource_t new_source, uint8_t new_confidence);
 
-void hydra_heartbeat_init(const HydraHeartbeatLedConfig_t *led_config) {
+void hydra_heartbeat_init(const HydraLedConfig_t *led_config) {
     // Store the LED configuration
     if (led_config != NULL) {
         led_cfg = *led_config;
@@ -76,7 +75,7 @@ void hydra_heartbeat_init(const HydraHeartbeatLedConfig_t *led_config) {
 }
 
 void heartbeat_task(void *argument) {
-    hydra_heartbeat_init((HydraHeartbeatLedConfig_t *)argument);
+    hydra_heartbeat_init((HydraLedConfig_t *)argument);
 
     for (;;) {
         check_response_window();
