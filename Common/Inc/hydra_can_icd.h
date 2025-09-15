@@ -21,35 +21,6 @@
 #define CAN_ID_STATE_VOTE 				0x91, // Vote response
 #define CAN_ID_STATE_COMMIT				0x92, // Final state commit
 
-/* State transition vote types */
-typedef enum {
-    VOTE_APPROVE 						= 0x00,
-    VOTE_VETO    						= 0x01,
-    VOTE_ABSTAIN 						= 0x02
-} StateVote_t;
-
-/* State transition request format */
-typedef struct {
-    uint8_t requester_alias;
-    SystemState requested_state;
-    uint8_t request_id;
-    uint32_t timeout_ticks;
-} StateRequest_t;
-
-/* State transition response format */
-typedef struct {
-    uint8_t responder_alias;
-    uint8_t request_id;
-    StateVote_t state_vote;
-} StateResponse_t;
-
-/* State commit message format */
-typedef struct {
-    uint8_t requester_alias;
-    uint8_t request_id;
-    SystemState resulting_state;
-} StateResponse_t;
-
 /*-----------------------------------------------------------
  * HEARTBEAT/SYNC PACKETS
  *-----------------------------------------------------------*/

@@ -21,7 +21,8 @@
 
 #define SYSTEM_TIME_ADJUSTMENT_DEADBAND_MS 25		//minimum amount of discrepancy (in ms) between a host's perceived local time and the best available system time before the host adjusts its local time
 
-#define MAX_STATE_REQ_ATTEMPTS 20 					//Max number of consecutive state change request attempts before the initiator acts without confirmation from other boards.
+#define VOTE_RESPONSE_TIMEOUT 3000 					//Max amount of time for boards to reply to a state change request
+#define MAX_STATE_REQ_ATTEMPTS 5 					//Max number of consecutive state change request attempts before the initiator acts without confirmation from other boards.
 
 //CAN FD Configuration
 

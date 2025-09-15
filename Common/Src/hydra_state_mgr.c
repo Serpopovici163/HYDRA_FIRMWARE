@@ -13,16 +13,18 @@
 #include "queue.h"
 #include "timers.h"
 
-/* Private variables */
-static SystemState current_state = SYSTEM_STATE_PREFLIGHT; //default to this on boot
-static StateVote_t (*vote_callback)(SystemState) = NULL;
+/*-----------------------------------------------------------
+ * Private vars
+ *-----------------------------------------------------------*/
 
-/* State transition management */
+static SystemState current_state = SYSTEM_STATE_PREFLIGHT; //default to this on boot
+
 static StateRequest_t pending_request;
 static uint8_t vote_approvals = 0;
 static uint8_t vote_vetoes = 0;
 static uint8_t expected_voters = 0;
 static TimerHandle_t state_vote_timer;
+static uint8_t latest_request_id = 0;
 
 /* Queue for state-related CAN messages */
 QueueHandle_t xStateRxQueue;
@@ -38,13 +40,13 @@ static void commit_state_change(SystemState new_state);
   */
 void hydra_state_mgr_init(void) {
     // Register CAN callback for state messages
-    hydra_comm_set_rx_callback(process_state_message);
+    hydra_comm_set_rx_callback(process_state_message); //TODO: look into how this works
 
     // Create queue for state messages if needed
     xStateRxQueue = xQueueCreate(10, sizeof(HydraCanRxMessage_t));
 
     // Create state vote timeout timer
-    state_vote_timer = xTimerCreate("StateVoteTimer", pdMS_TO_TICKS(5000), pdFALSE, NULL, state_vote_timer_callback);
+    state_vote_timer = xTimerCreate("StateVoteTimer", pdMS_TO_TICKS(VOTE_RESPONSE_TIMEOUT), pdFALSE, NULL, state_vote_timer_callback);
 }
 
 /**
@@ -89,7 +91,7 @@ void hydra_state_mgr_request_state(SystemState new_state) {
     hydra_comm_send(CAN_ID_STATE_REQUEST, data, sizeof(data), CAN_BUS_A);
 
     // Start vote timeout timer
-    xTimerChangePeriod(state_vote_timer, pdMS_TO_TICKS(5000), 0);
+    xTimerChangePeriod(state_vote_timer, pdMS_TO_TICKS(VOTE_RESPONSE_TIMEOUT), 0);
 }
 
 /**
