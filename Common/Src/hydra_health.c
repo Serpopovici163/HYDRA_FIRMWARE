@@ -42,7 +42,7 @@ static uint32_t local_time_offset							= 0; // Used to store offset between sys
 																 // and will revert to some other board's local_time which will be HAL_GetTick()+local_time_offset since we don't want the timstamp to jump upon losing GPS.
 
 /*-----------------------------------------------------------
- * Private functions
+ * Private function prototypes
  *-----------------------------------------------------------*/
 
 // Sync stuff

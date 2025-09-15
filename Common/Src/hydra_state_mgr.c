@@ -8,6 +8,7 @@
 #include "hydra_comm.h"
 #include "hydra_identity.h"
 #include "hydra_events.h"
+#include "hydra_health.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -29,11 +30,18 @@ static uint8_t latest_request_id = 0;
 /* Queue for state-related CAN messages */
 QueueHandle_t xStateRxQueue;
 
-/* Private function prototypes */
+/*-----------------------------------------------------------
+ * Private function prototypes
+ *-----------------------------------------------------------*/
+
 static void process_state_message(uint32_t can_id, uint8_t* data, uint8_t len, CanBus bus);
 static void state_vote_timer_callback(TimerHandle_t xTimer);
 static void send_state_vote(StateVote_t vote, uint8_t request_id);
 static void commit_state_change(SystemState new_state);
+
+/*-----------------------------------------------------------
+ * Init functions
+ *-----------------------------------------------------------*/
 
 /**
   * @brief  Initializes the state manager module.
@@ -50,14 +58,6 @@ void hydra_state_mgr_init(void) {
 }
 
 /**
-  * @brief  Gets the current system state.
-  * @retval Current SystemState.
-  */
-SystemState hydra_state_mgr_get_current_state(void) {
-    return current_state;
-}
-
-/**
   * @brief  Registers a board-specific vote callback function.
   * @param  callback: Function pointer that returns a StateVote_t for a proposed state.
   */
@@ -65,11 +65,27 @@ void hydra_state_mgr_register_vote_callback(StateVote_t (*callback)(SystemState)
     vote_callback = callback;
 }
 
+/*-----------------------------------------------------------
+ * Private var share functions
+ *-----------------------------------------------------------*/
+
+/**
+  * @brief  Gets the current system state.
+  * @retval Current SystemState.
+  */
+SystemState hydra_state_mgr_get_current_state(void) {
+    return current_state;
+}
+
+/*-----------------------------------------------------------
+ * State management request functions
+ *-----------------------------------------------------------*/
+
 /**
   * @brief  Requests a transition to a new system state (initiates voting).
   * @param  new_state: The desired state to transition to.
   */
-void hydra_state_mgr_request_state(SystemState new_state) {
+void hydra_state_mgr_request_state_change(SystemState_t new_state) { //todo: how do we deal with multiple boards sending state requests at the same time? --> deterministically pick one or the other (prioritize failsafe type requests), maybe logic allows for multiple concurrent requests with minimal changes
     // Create state transition request
     pending_request.requester_alias = hydra_identity_get_alias();
     pending_request.requested_state = new_state;
@@ -79,7 +95,9 @@ void hydra_state_mgr_request_state(SystemState new_state) {
     // Reset vote counters
     vote_approvals = 0;
     vote_vetoes = 0;
-    expected_voters = 0; // This would be set based on known boards from heartbeat
+    expected_voters = hydra_health_get_last_known_board_count(); // This would be set based on known boards from heartbeat
+
+    //TODO: get_peer_list in hydra_identity always returns all boards even if dead but get_last_known_board_count only returns live members that have replied to heartbeats
 
     // Broadcast state transition request
     uint8_t data[4];
