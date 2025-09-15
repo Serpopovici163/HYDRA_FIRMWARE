@@ -9,23 +9,23 @@
  * AUTO-ENUMERATION PACKETS
  *-----------------------------------------------------------*/
 
-#define CAN_ID_ALIAS_ANNOUNCE 0x50
-#define CAN_ID_ALIAS_REJECT 0x51
+#define CAN_ID_ALIAS_ANNOUNCE 			0x50
+#define CAN_ID_ALIAS_REJECT 			0x51
 
 /*-----------------------------------------------------------
  * STATE MANAGEMENT PACKETS
  *-----------------------------------------------------------*/
 
 // State Management Messages
-#define CAN_ID_STATE_REQUEST 0x90, // Request state transition
-#define CAN_ID_STATE_VOTE 0x91, // Vote response
-#define CAN_ID_STATE_COMMIT 0x92, // Final state commit
+#define CAN_ID_STATE_REQUEST 			0x90, // Request state transition
+#define CAN_ID_STATE_VOTE 				0x91, // Vote response
+#define CAN_ID_STATE_COMMIT				0x92, // Final state commit
 
 /* State transition vote types */
 typedef enum {
-    VOTE_APPROVE = 0x00,
-    VOTE_VETO    = 0x01,
-    VOTE_ABSTAIN = 0x02
+    VOTE_APPROVE 						= 0x00,
+    VOTE_VETO    						= 0x01,
+    VOTE_ABSTAIN 						= 0x02
 } StateVote_t;
 
 /* State transition request format */
@@ -54,26 +54,32 @@ typedef struct {
  * HEARTBEAT/SYNC PACKETS
  *-----------------------------------------------------------*/
 
-#define CAN_ID_SYNC 0x100
+#define CAN_ID_SYNC 					0x100
+
+/*-----------------------------------------------------------
+ * GENERIC TELEMETRY PACKETS
+ *-----------------------------------------------------------*/
+
+//USE IDs 0x200-0x300
 
 /*-----------------------------------------------------------
  * SENSOR DATA PACKETS
  *-----------------------------------------------------------*/
 
 // UNIVERSAL SENSOR DATA MESSAGES - For any board (NAV, Recovery, etc.)
-#define CAN_ID_RAW_IMU 0x320, // Raw IMU data from any board
-#define CAN_ID_RAW_BARO 0x321, // Raw barometer data from any board
-#define CAN_ID_RAW_GPS 0x322, // Raw GPS data
-#define CAN_ID_FILTERED_STATE 0x323, // Filtered navigation state
+#define CAN_ID_RAW_IMU 					0x320, // Raw IMU data from any board
+#define CAN_ID_RAW_BARO 				0x321, // Raw barometer data from any board
+#define CAN_ID_RAW_GPS 					0x322, // Raw GPS data
+#define CAN_ID_FILTERED_STATE 			0x323, // Filtered navigation state
 
 typedef enum {
-	SENSOR_TYPE_FILTERED = 0,
-	SENSOR_TYPE_IMU0 = 1,
-	SENSOR_TYPE_IMU1 = 2,
-	SENSOR_TYPE_BARO0 = 3,
-	SENSOR_TYPE_BARO1 = 4,
-	SENSOR_TYPE_GPS = 5,
-	SENSOR_TYPE_MAG = 6
+	SENSOR_TYPE_FILTERED 				= 0,
+	SENSOR_TYPE_IMU0 					= 1,
+	SENSOR_TYPE_IMU1 					= 2,
+	SENSOR_TYPE_BARO0 					= 3,
+	SENSOR_TYPE_BARO1 					= 4,
+	SENSOR_TYPE_GPS 					= 5,
+	SENSOR_TYPE_MAG 					= 6
 } SensorType_t;
 
 // Common header for all sensor data messages

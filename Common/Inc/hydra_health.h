@@ -17,11 +17,11 @@ typedef enum {
     HEARTBEAT_WAITING_FOR_RESPONSES 	= 0x01
 } HeartbeatState_t;
 
-// Time source types, assigned such that the one with most confidence (GPS) is the greatest value so we can check if another board has a better time source by comparing the time source of another board with ours using >/<
+// Time source types, assigned such that the one with most confidence (GPS) is the lowest value so we can check if another board has a better time source by comparing the time source of another board with ours using >/<
 typedef enum {
-    TIME_SOURCE_INTERNAL 				= 0x01,		// Unsynchronized internal clock
-    TIME_SOURCE_ESTIMATED				= 0x02,		// Dead-reckoned from last sync (by NAV)
-	TIME_SOURCE_GPS						= 0x03		// GNSS/GPS time
+	TIME_SOURCE_GPS 					= 0x01,		// GNSS/GPS time
+    TIME_SOURCE_ESTIMATED				= 0x02,		// Dead-reckoned from last GPS time sync
+	TIME_SOURCE_INTERNAL				= 0x03		// Unsynchronized internal clock
 } TimeSource_t;
 
 // Since we use the same ID for all sync requests, we need a byte within the CAN frame to specify if we are the initiator or not
@@ -32,6 +32,7 @@ typedef enum {
 
 // Defines status of the board as a whole.
 // IMPORTANT: only 3 bits are available in heartbeat message for these values
+// Range: 0x0-0x7
 typedef enum {
 	HYDRA_STATUS_OK 					= 0x0,
 	HYDRA_STATUS_WARN 					= 0x1,
@@ -40,7 +41,9 @@ typedef enum {
 	HYDRA_STATUS_INITIALIZING			= 0x4
 } HydraGlobalStatus_t;
 
-// Defines which subsystem has faulted if any
+// Defines which subsystem has faulted if any, ranked with 0x1 being highest priority fault (0x0 means no fault) and 0xF being lowest
+// IMPORTANT: only 5 bits available in heartbeat message for these values
+// RANGE: 0x0 - 0x1F
 typedef enum {
 	HYDRA_SUBSYS_FLT_NONE				= 0x0,
 	HYDRA_SUBSYS_FLT_RTOS				= 0x1,
@@ -69,18 +72,12 @@ typedef struct {
 // Structure to hold the status of another board
 typedef struct {
     uint8_t alias;
-    uint16_t status_code;
+    uint16_t last_received_status_code;
     uint32_t last_heard_ms; // Timestamp of last status update
-    bool present;           // Flag if board is considered online
+    uint32_t last_received_timestamp_ms;
+    TimeSource_t last_received_timesource;
+    bool is_supposed_to_be_present;           // Flag if board is supposed to be online (used when we turn off boards using the TCAN1146)
 } BoardStatus_t;
-
-// Struct to hold a time value since EPOCH
-typedef struct {
-    uint32_t seconds;
-    uint32_t milliseconds;
-    TimeSource_t source;
-    uint16_t confidence_ms; // Estimate of error (± value)
-} HydraTime_t;
 
 /*-----------------------------------------------------------
  * CAN Frame Format
@@ -97,11 +94,17 @@ typedef struct {
  * Public API
  *-----------------------------------------------------------*/
 
-void hydra_heartbeat_init(const HydraHeartbeatLedConfig_t *led_config);
-void hydra_heartbeat_set_local_status(uint16_t status);
-BoardStatus_t* hydra_heartbeat_get_status_table(uint8_t* count);
-void hydra_heartbeat_set_time_source(TimeSource_t source, uint16_t confidence_ms);
-HydraTime_t hydra_heartbeat_get_system_time(void);
+void hydra_health_init(const HydraHeartbeatLedConfig_t *led_config);
+void hydra_health_heartbeat_init(void);
+
+uint32_t hydra_health_get_system_time_offset(void);
+TimeSource_t hydra_health_get_system_time_source(void);
+void hydra_health_set_time_source(TimeSource_t source);
+static void update_local_time(uint32_t new_ms, TimeSource_t new_source);
+BoardStatus_t* hydra_health_get_status_table(void);
+uint8_t hydra_health_get_last_known_board_count(void);
+uint16_t hydra_health_get_subsys_flt_flags(void);
+void hydra_health_set_subsys_error(HydraSubsystemFault_t hydra_subsys, uint8_t subsys_error_code);
 
 // The main task for the heartbeat module
 void heartbeat_task(void *argument);

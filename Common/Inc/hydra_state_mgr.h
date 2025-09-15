@@ -8,6 +8,10 @@
 
 #include "hydra_core.h"
 
+/*-----------------------------------------------------------
+ * Private enums
+ *-----------------------------------------------------------*/
+
 typedef enum {
     // Pre-flight States
     SYSTEM_STATE_PREFLIGHT = 0,
@@ -28,13 +32,11 @@ typedef enum {
     SYSTEM_STATE_CRITICAL_FAILURE,
 
     SYSTEM_STATE_COUNT
-} SystemState;
-
-#define MAX_STATE_REQ_ATTEMPTS 20 //Max number of state change request attempts before the initiator acts without confirmation from other boards.
+} SystemState_t;
 
 /* Public API */
 void hydra_state_mgr_init(void);
-SystemState hydra_state_mgr_get_current_state(void);
+SystemState_t hydra_state_mgr_get_current_state(void);
 void hydra_state_mgr_request_state(SystemState new_state);
 void hydra_state_mgr_register_vote_callback(StateVote_t (*callback)(SystemState proposed_state));
 

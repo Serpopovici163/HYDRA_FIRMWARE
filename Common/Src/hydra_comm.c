@@ -8,6 +8,12 @@
 #include "hydra_events.h"
 #include "string.h"
 
+#if defined(STM32G4xx)
+    #include "stm32g4xx_hal.h" // Will be included by the G4 board's project
+#elif defined(STM32H7xx)
+    #include "stm32h7xx_hal.h" // Will be included by the H7 board's project
+#endif
+
 /* Private variables */
 static hydra_comm_rx_callback_t user_rx_callback = NULL;
 static SystemState degraded_state = SYSTEM_STATE_NORMAL;
@@ -37,7 +43,7 @@ static HAL_StatusTypeDef can_send_internal(CAN_HandleTypeDef *hcan, uint32_t can
   * @brief  Initializes the communication module, queues, and tasks.
   * @retval HydraStatus_t HYDRA_OK if successful, HYDRA_ERR otherwise.
   */
-HydraStatus_t hydra_comm_init(void) {
+void hydra_comm_init(void) {
     // Initialize the TX queue
     xCanTxQueue = xQueueCreate(32, sizeof(HydraCanTxMessage_t));
     if (xCanTxQueue == NULL) {
@@ -70,7 +76,7 @@ HydraStatus_t hydra_comm_init(void) {
   * @param  bus: Which bus to send on.
   * @retval HydraStatus_t HYDRA_OK if queued successfully, HYDRA_ERR otherwise.
   */
-HydraStatus_t hydra_comm_send(uint32_t can_id, const uint8_t* data, uint8_t len, CanBus bus) {
+void hydra_comm_send(uint32_t can_id, const uint8_t* data, uint8_t len, CanBus bus) {
     HydraCanTxMessage_t tx_msg;
 
     if (len > CANFD_MAX_DATA_LEN) {

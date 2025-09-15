@@ -14,7 +14,7 @@
 #include "timers.h"
 
 /* Private variables */
-static SystemState current_state = SYSTEM_STATE_PREFLIGHT;
+static SystemState current_state = SYSTEM_STATE_PREFLIGHT; //default to this on boot
 static StateVote_t (*vote_callback)(SystemState) = NULL;
 
 /* State transition management */
@@ -209,3 +209,6 @@ void state_mgr_task(void *argument) {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
+
+//Deepseek mentioned two possible improvements to the state machine: blacklist any board that who's state requests frequently get vetoed || make each board store a confidence value in its state and implement that into the state logic. If a board's request gets vetoed, its confidence decreases
+
