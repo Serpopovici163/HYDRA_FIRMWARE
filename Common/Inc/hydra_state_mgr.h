@@ -12,60 +12,31 @@
  * Public enums
  *-----------------------------------------------------------*/
 
+#define HYDRA_STATE_MGR_NUM_STATES 		11 //number of states in the SystemState_t enum
+
+// Defines possible states for system as a whole
+// IMPORTANT: only 4 bits are available in sync message for these values
+// Range: 0x0-0xF
 typedef enum {
     // Pre-flight States
-    SYSTEM_STATE_PREFLIGHT = 0,
-    SYSTEM_STATE_ARMED,
+	SYSTEM_STATE_NOT_READY				= 0x0,
+    SYSTEM_STATE_PREFLIGHT 				= 0x1,
+    SYSTEM_STATE_ARMED					= 0x2,
 
     // Ascent States (can be re-entered for staging)
-    SYSTEM_STATE_POWERED_ASCENT,
-    SYSTEM_STATE_COASTING,
+    SYSTEM_STATE_POWERED_ASCENT			= 0x3,
+    SYSTEM_STATE_COASTING				= 0x4,
 
     // Event-based States (can only happen once)
-    SYSTEM_STATE_APOGEE,
-    SYSTEM_STATE_DROGUE_DEPLOY,
-    SYSTEM_STATE_MAIN_DEPLOY,
-    SYSTEM_STATE_LANDED,
+    SYSTEM_STATE_APOGEE					= 0x5,
+    SYSTEM_STATE_DROGUE_DEPLOY			= 0x6,
+    SYSTEM_STATE_MAIN_DEPLOY			= 0x7,
+    SYSTEM_STATE_LANDED					= 0x8,
 
     // Anytime States
-    SYSTEM_STATE_SAFE,
-    SYSTEM_STATE_CRITICAL_FAILURE,
-
-    SYSTEM_STATE_COUNT
-} SystemState_t;
-
-/* State transition vote types */
-typedef enum {
-    VOTE_APPROVE 						= 0x00,
-    VOTE_VETO    						= 0x01,
-    VOTE_ABSTAIN 						= 0x02
-} StateVote_t;
-
-/*-----------------------------------------------------------
- * CAN frame format
- *-----------------------------------------------------------*/
-
-/* State transition request format */
-typedef struct {
-    uint8_t requester_alias;
-    SystemState requested_state;
-    uint8_t request_id;
-    uint32_t timeout_ticks;
-} StateRequest_t;
-
-/* State transition response format */
-typedef struct {
-    uint8_t responder_alias;
-    uint8_t request_id;
-    StateVote_t state_vote;
-} StateResponse_t;
-
-/* State commit message format */
-typedef struct {
-    uint8_t requester_alias;
-    uint8_t request_id;
-    SystemState resulting_state;
-} StateCommit_t;
+    SYSTEM_STATE_SAFE					= 0x9,
+    SYSTEM_STATE_ABORT					= 0xA,
+} SystemState_t; //Update HYDRA_STATE_MGR_NUM_STATES if this gets changed!!!
 
 /*-----------------------------------------------------------
  * Public API
@@ -73,8 +44,9 @@ typedef struct {
 
 void hydra_state_mgr_init(void);
 SystemState_t hydra_state_mgr_get_current_state(void);
-void hydra_state_mgr_request_state(SystemState new_state);
-void hydra_state_mgr_register_vote_callback(StateVote_t (*callback)(SystemState proposed_state));
+void hydra_state_mgr_update_confidence(SystemState_t state, uint8_t confidence); //important: confidence can only be 6 bits, max is 63
+
+void process_state_message(uint8_t* data, uint8_t len);
 
 /* The main state manager task */
 void state_mgr_task(void *argument);

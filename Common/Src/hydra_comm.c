@@ -4,8 +4,8 @@
   * @brief   Implementation of dual CAN FD bus management.
   ******************************************************************************
   */
-#include "hydra_comm.h"
-#include "hydra_events.h"
+#include "../Inc/hydra_comm.h"
+#include "../Inc/hydra_events.h"
 #include "string.h"
 
 #if defined(STM32G4xx)
@@ -16,7 +16,7 @@
 
 /* Private variables */
 static hydra_comm_rx_callback_t user_rx_callback = NULL;
-static SystemState degraded_state = SYSTEM_STATE_NORMAL;
+static SystemState_t degraded_state = SYSTEM_STATE_NORMAL;
 
 /* CAN Handle Definitions - These are defined in the board's main.c */
 extern CAN_HandleTypeDef hcan1; // Assume hcan1 = BUS_A

@@ -6,7 +6,7 @@
   */
 #pragma once
 
-#include "hydra_core.h"
+#include "../Inc/hydra_core.h"
 #include "FreeRTOS.h"
 #include "queue.h"
 
@@ -18,7 +18,7 @@ void hydra_comm_init(void);
 void hydra_comm_send(uint32_t can_id, const uint8_t* data, uint8_t len, CanBus bus);
 void hydra_comm_set_rx_callback(hydra_comm_rx_callback_t callback);
 uint8_t hydra_comm_is_bus_healthy(CanBus bus);
-SystemState hydra_comm_get_system_degraded_state(void);
+SystemState_t hydra_comm_get_system_degraded_state(void);
 
 /* RTOS Task Functions */
 void comm_tx_task(void *argument);

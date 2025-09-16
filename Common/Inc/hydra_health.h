@@ -1,5 +1,5 @@
 #pragma once
-#include "hydra_core.h"
+#include "../Inc/hydra_core.h"
 
 #if defined(STM32G4xx)
     #include "stm32g4xx_hal.h" // Will be included by the G4 board's project

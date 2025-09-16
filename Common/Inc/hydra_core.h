@@ -21,8 +21,13 @@
 
 #define SYSTEM_TIME_ADJUSTMENT_DEADBAND_MS 25		//minimum amount of discrepancy (in ms) between a host's perceived local time and the best available system time before the host adjusts its local time
 
-#define VOTE_RESPONSE_TIMEOUT 3000 					//Max amount of time for boards to reply to a state change request
-#define MAX_STATE_REQ_ATTEMPTS 5 					//Max number of consecutive state change request attempts before the initiator acts without confirmation from other boards.
+//State manager configuration
+
+#define STATE_MGR_VOTE_RESPONSE_TIMEOUT 3000 		//Max amount of time for boards to reply to a state change request
+#define STATE_MGR_MAX_STATE_REQ_ATTEMPTS 5 			//Max number of consecutive state change request attempts before the initiator acts without confirmation from other boards.
+
+#define STATE_MGR_MAX_CONFIDENCE 63					//Maximum numerical confidence value for a state (limited by the number of bits reserved for this value in the sync packet)
+#define STATE_MGR_MAX_VETOES 1						//Maximum allowable number of vetoes for which a state transition can succeed regardless of how many boards approve
 
 //CAN FD Configuration
 
