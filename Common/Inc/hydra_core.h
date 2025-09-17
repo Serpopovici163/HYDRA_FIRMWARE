@@ -23,11 +23,15 @@
 
 //State manager configuration
 
-#define STATE_MGR_VOTE_RESPONSE_TIMEOUT 3000 		//Max amount of time for boards to reply to a state change request
+#define STATE_MGR_VOTE_RESPONSE_TIMEOUT 500 		//Max amount of time for boards to reply to a state change request before the request times out
 #define STATE_MGR_MAX_STATE_REQ_ATTEMPTS 5 			//Max number of consecutive state change request attempts before the initiator acts without confirmation from other boards.
 
 #define STATE_MGR_MAX_CONFIDENCE 63					//Maximum numerical confidence value for a state (limited by the number of bits reserved for this value in the sync packet)
+#define STATE_MGR_VETO_CONFIDENCE 20				//Confidence value below which a board will veto a state request
+#define STATE_MGR_APPROVE_CONFIDENCE 45				//Min confidence value required for a board to approve a request
+
 #define STATE_MGR_MAX_VETOES 1						//Maximum allowable number of vetoes for which a state transition can succeed regardless of how many boards approve
+#define STATE_MGR_MIN_APPROVALS 1					//Minimum number of approvals a board must receive to change states
 
 //CAN FD Configuration
 

@@ -43,9 +43,9 @@ typedef enum {
  *-----------------------------------------------------------*/
 
 void hydra_state_mgr_init(void);
+
 SystemState_t hydra_state_mgr_get_current_state(void);
 void hydra_state_mgr_update_confidence(SystemState_t state, uint8_t confidence); //important: confidence can only be 6 bits, max is 63
-
 void process_state_message(uint8_t* data, uint8_t len);
 
 /* The main state manager task */
