@@ -144,7 +144,11 @@ void process_state_message(uint32_t can_id, uint8_t* data, uint8_t len) {
 			outgoing_request.private_votes_expected--;
 
 			// Check if we have received enough votes to make a decision
-			if (outgoing_request.private_veto_count > STATE_MGR_MAX_VETOES) {
+			if (outgoing_request.requested_state == SYSTEM_STATE_ABORT && outgoing_request.private_approval_count > 0) {
+				//We requested to abort and at least one more board agrees so bypass voting process and abort
+				xTimerStop(outgoing_request_vote_timeout_timer, 0);
+				state_mgr_commit_state_change(outgoing_request.requested_state);
+			} else if (outgoing_request.private_veto_count > STATE_MGR_MAX_VETOES) {
 				// Veto received, cancel the request
 				xTimerStop(outgoing_request_vote_timeout_timer, 0);
 			} else if (outgoing_request.private_votes_expected == 0 && outgoing_request.private_approval_count >= STATE_MGR_MIN_APPROVALS) {

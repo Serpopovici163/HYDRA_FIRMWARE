@@ -10,7 +10,7 @@
  *-----------------------------------------------------------*/
 
 #define CAN_ID_ALIAS_ANNOUNCE 			0x50
-#define CAN_ID_ALIAS_REJECT 			0x51
+#define CAN_ID_ALIAS_REJECT 			0x51 //Do we need this? all boards follow the same logic and therefore don't need to be notified of a rejected alias
 
 /*-----------------------------------------------------------
  * STATE MANAGEMENT PACKETS
