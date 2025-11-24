@@ -1,21 +1,9 @@
 #pragma once
 #include "../Inc/hydra_core.h"
 
-#if defined(STM32G4xx)
-    #include "stm32g4xx_hal.h" // Will be included by the G4 board's project
-#elif defined(STM32H7xx)
-    #include "stm32h7xx_hal.h" // Will be included by the H7 board's project
-#endif
-
 /*-----------------------------------------------------------
- * Private enums
+ * Public enums
  *-----------------------------------------------------------*/
-
-// Deepseek made these, might delete but I'll keep them if it makes the code more legible
-typedef enum {
-    HEARTBEAT_IDLE 						= 0x00,
-    HEARTBEAT_WAITING_FOR_RESPONSES 	= 0x01
-} HeartbeatState_t;
 
 // Time source types, assigned such that the one with most confidence (GPS) is the lowest value so we can check if another board has a better time source by comparing the time source of another board with ours using >/<
 typedef enum {
@@ -23,12 +11,6 @@ typedef enum {
     TIME_SOURCE_ESTIMATED				= 0x02,		// Dead-reckoned from last GPS time sync
 	TIME_SOURCE_INTERNAL				= 0x03		// Unsynchronized internal clock
 } TimeSource_t;
-
-// Since we use the same ID for all sync requests, we need a byte within the CAN frame to specify if we are the initiator or not
-typedef enum {
-	SYNC_TYPE_REQUEST 					= 0x01,
-	SYNC_TYPE_RESPONSE 					= 0x02
-} SyncType_t;
 
 // Defines status of the board as a whole.
 // IMPORTANT: only 3 bits are available in heartbeat message for these values
@@ -56,28 +38,6 @@ typedef enum {
 	HYDRA_SUBSYS_FLT_MEMORY				= 0x8,
 	HYDRA_SUBSYS_FLT_CONFIG				= 0x9
 } HydraSubsystemFault_t;
-
-/*-----------------------------------------------------------
- * Private structs
- *-----------------------------------------------------------*/
-
-// Structure to hold LED GPIO configuration since they change from board to board
-typedef struct {
-    GPIO_TypeDef* green_port;
-    uint16_t green_pin;
-    GPIO_TypeDef* red_port;
-    uint16_t red_pin;
-} HydraLedConfig_t;
-
-// Structure to hold the status of another board
-typedef struct {
-    uint8_t alias;
-    uint16_t last_received_status_code;
-    uint32_t last_heard_ms; // Timestamp of last status update
-    uint32_t last_received_timestamp_ms;
-    TimeSource_t last_received_timesource;
-    bool is_supposed_to_be_present;           // Flag if board is supposed to be online (used when we turn off boards using the TCAN1146)
-} BoardStatus_t;
 
 /*-----------------------------------------------------------
  * CAN Frame Format

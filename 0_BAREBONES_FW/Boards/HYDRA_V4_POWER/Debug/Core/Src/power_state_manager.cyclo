@@ -1,0 +1,6 @@
+../Core/Src/power_state_manager.c:50:6:power_state_manager_init	2
+../Core/Src/power_state_manager.c:66:6:power_state_manager_store_raw_adc_values	4
+../Core/Src/power_state_manager.c:92:10:getBoardStateBits	2
+../Core/Src/power_state_manager.c:99:10:getRawADCValue	2
+../Core/Src/power_state_manager.c:106:10:getScaledADCValue	2
+../Core/Src/power_state_manager.c:118:13:PowerStateTask	7

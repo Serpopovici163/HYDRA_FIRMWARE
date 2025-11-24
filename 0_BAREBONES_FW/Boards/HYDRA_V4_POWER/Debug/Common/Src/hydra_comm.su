@@ -1,0 +1,4 @@
+D:/HYDRA/1_HYDRA_FIRMWARE/0_BAREBONES_FW/Common/Src/hydra_comm.c:54:6:hydra_comm_init	24	static
+D:/HYDRA/1_HYDRA_FIRMWARE/0_BAREBONES_FW/Common/Src/hydra_comm.c:69:6:_spi_write	24	static
+D:/HYDRA/1_HYDRA_FIRMWARE/0_BAREBONES_FW/Common/Src/hydra_comm.c:78:6:_spi_read	32	static
+D:/HYDRA/1_HYDRA_FIRMWARE/0_BAREBONES_FW/Common/Src/hydra_comm.c:90:6:TCAN1146_SetMode	24	static

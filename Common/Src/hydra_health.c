@@ -1,3 +1,36 @@
+/**
+  ******************************************************************************
+  * @file  	hydra_health.c
+  * @brief  Implementation for board health management.
+  *         Supports multiple G4 and H7 MCU families
+  *
+  * @logic	This module is in charge of reporting the status of the local board to the entire stack as well
+  * 		as synchronizing the timestamp between multiple boards. The status of the local board includes the
+  * 		following:
+  *
+  * 			- 	BOARD ALIAS --> Taken from hydra_identity
+  * 			-	LOCAL ERROR CODE --> 16bit int where each bit represents a fault in a particular subsystem
+  * 			-	LOCAL TIME --> the timestamp according to the host (IMPORTANT: THIS DIFFERS FROM SYSTEM TIME)
+  * 								SYSTEM TIME IS AGREED UPON BY ALL BOARDS WHEREAS LOCAL TIME IS THIS BOARD'S
+  * 								LOCAL TIME. THE SYSTEM TIME IS THE LOCAL TIME OF WHICHEVER BOARD HAS THE HIGHEST
+  * 								RELIABILITY TIMESTAMP. THE LOGIC FOR HOW A BOARD IS CHOSEN IS EXPLAINED IN MORE
+  * 								DETAIL LATER.
+  *
+  * 								Timestamp format: ddmmyyhhmmssxxx
+  *
+  * 			-	LOCAL TIME SOURCE -->
+  *
+  * @CAN frames:
+  *
+  * 		CAN_ID_SYNC_REQUEST (14 bytes):
+  * 			uint8_t --> alias
+  * 			uint8_t --> fault_code
+  * 			uint8_t --> time //TODO: figure out and implement state manager data
+  *
+  * 		CAN_ID_SYNC_RESPONSE
+  ******************************************************************************
+  */
+
 #include "hydra_events.h"
 #include "hydra_comm.h"
 #include "hydra_identity.h"
@@ -13,6 +46,37 @@
 #endif
 
 /*-----------------------------------------------------------
+ * Private enums
+ *-----------------------------------------------------------*/
+
+typedef enum {
+    HEARTBEAT_IDLE 						= 0x00,
+    HEARTBEAT_WAITING_FOR_RESPONSES 	= 0x01
+} HeartbeatState_t;
+
+/*-----------------------------------------------------------
+ * Private structs
+ *-----------------------------------------------------------*/
+
+// Structure to hold LED GPIO configuration since they change from board to board
+typedef struct {
+    GPIO_TypeDef* green_port;
+    uint16_t green_pin;
+    GPIO_TypeDef* red_port;
+    uint16_t red_pin;
+} HydraLedConfig_t;
+
+// Structure to hold the status of another board
+typedef struct {
+    uint8_t alias;
+    uint16_t last_received_status_code;
+    uint32_t last_heard_ms; 					// Timestamp of last status update
+    uint32_t last_received_timestamp_ms;
+    TimeSource_t last_received_timesource;
+    bool is_supposed_to_be_present;				// Flag if board is supposed to be online (used when we turn off boards using the TCAN1146)
+} BoardStatus_t;
+
+/*-----------------------------------------------------------
  * Private variables
  *-----------------------------------------------------------*/
 
@@ -22,7 +86,7 @@ static uint8_t subsys_err_msg[32]; 									  //There are 32 possible subsystem 
 static uint16_t local_status_code							= 0x0000; //This is what is transmitted during SYNC messages and only contains the highest priority error code
 
 static BoardStatus_t status_table[MAX_BOARDS_IN_STACK-1]; //host is not included since most of these vars do not apply to the host
-static HeartbeatState_t heartbeat_state 					= HEARTBEAT_IDLE;
+static HeartbeatState_t heartbeat_state 					= HEARTBEAT_IDLE; //Used to keep track of whether we're waiting for heartbeat responses or are waiting for a heartbeat
 
 // Sync message config
 static TimerHandle_t sync_timer								= NULL; // Timer for triggering sync checks

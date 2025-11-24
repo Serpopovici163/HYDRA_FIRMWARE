@@ -25,7 +25,8 @@
  * HEARTBEAT/SYNC PACKETS
  *-----------------------------------------------------------*/
 
-#define CAN_ID_SYNC 					0x100
+#define CAN_ID_SYNC_REQUEST				0x100
+#define CAN_ID_SYNC_RESPONSE			0x101
 
 /*-----------------------------------------------------------
  * GENERIC TELEMETRY PACKETS

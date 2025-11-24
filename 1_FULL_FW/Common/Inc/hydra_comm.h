@@ -1,0 +1,25 @@
+/**
+  ******************************************************************************
+  * @file    hydra_comm.h
+  * @brief   Hardware abstraction and management for dual CAN FD buses.
+  ******************************************************************************
+  */
+#pragma once
+
+#include "../Inc/hydra_core.h"
+#include "FreeRTOS.h"
+#include "queue.h"
+
+/* Callback function type for received messages */
+typedef void (*hydra_comm_rx_callback_t)(uint32_t id, uint8_t* data, uint8_t len, CanBus bus);
+
+/* Public API */
+void hydra_comm_init(void);
+void hydra_comm_send(uint32_t can_id, const uint8_t* data, uint8_t len, CanBus bus);
+void hydra_comm_set_rx_callback(hydra_comm_rx_callback_t callback);
+uint8_t hydra_comm_is_bus_healthy(CanBus bus);
+SystemState_t hydra_comm_get_system_degraded_state(void);
+
+/* RTOS Task Functions */
+void comm_tx_task(void *argument);
+void comm_rx_task(void *argument);

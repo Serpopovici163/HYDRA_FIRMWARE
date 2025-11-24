@@ -1,7 +1,65 @@
 /**
   ******************************************************************************
-  * @file    hydra_state_mgr.c
-  * @brief   Implementation of decentralized state management with consensus.
+  * @file  	hydra_state_mgr.c
+  * @brief  Implementation of decentralized confidence-based state machine with consensus.
+  *
+  * @logic	This module stores an array of confidences for each possible state of the vehicle. The only interaction
+  * 		another par of the code can have with the state manager is updating the confidence for a particular state.
+  *
+  * 		The state manager regularly monitors the host's confidence in each state, and if:
+  *
+  * 			1. the host's confidence of a particular state exceeds STATE_MGR_APPROVE_CONFIDENCE, and
+  * 			2. the host's confidence of every other state is lower than STATE_MGR_VETO_CONFIDENCE, and
+  * 			3. the current_state differs from the state the host is most confident about, //TODO
+  *
+  * 		the state manager automatically sends a state change request to all other boards in the system.
+  *
+  * 		Whenever a state change request is received, the board checks its local confidence for the requested state
+  * 		and replies as follows:
+  *
+  * 			1. if local confidence > STATE_MGR_APPROVE_CONFIDENCE 								--> VOTE_APPROVE
+  * 				and every other state confidence < STATE_MGR_VETO_CONFIDENCE
+  * 			2. if STATE_MGR_VETO_CONFIDENCE < local confidence < STATE_MGR_APPROVE_CONFIDENCE	--> VOTE_ABSTAIN
+  * 			3. if local confidence < STATE_MGR_VETO_CONFIDENCE									--> VOTE_VETO
+  *
+  * 		The requester will make a call on the system state once it has either:
+  *
+  * 			1. received all the votes it expected to receive
+  * 			2. STATE_MGR_VOTE_RESPONSE_TIMEOUT milliseconds have elapsed from when the request was initiated
+  *
+  * 		The requester checks if condition 1 is valid every time it receives a new vote, and uses a timer to execute
+  * 		condition 2. The logic for making a call is at follows:
+  *
+  * 			1. If the requested state was SYSTEM_STATE_ABORT and at least one other board has approved, we abort
+  * 			2. If at least STATE_MGR_MAX_VETOES boards have voted VOTE_VETO, the request is abandoned
+  * 			3. If at least STATE_MGR_MIN_APPROVALS boards have voted VOTE_APPROVE and neither 1. or 2. was true,
+  * 			   commit state
+  *
+  * 		If the request is dropped, no further communication happens from the requester (TODO: maybe change?).
+  * 		If the system agrees to commit to the requested state, the requester will send a state commit message to
+  * 		notify everybody of the updated state.
+  *
+  * @CAN frames:
+  *
+  * 		CAN_ID_STATE_REQUEST (6 bytes):
+  * 			uint8_t --> alias
+  * 			uint8_t --> requested_state (as per SystemState_t enum)
+  * 			uint8_t --> time[4] <-- 4 item array since actually a 32bit int
+  *
+  * 			The time[4] is used to append the output of the requester's HAL_GetTick() function whenever a request is
+  * 			generated. This is used to provide unique IDs for every request.
+  *
+  * 			For every subsequent vote or commit request, the time of the initial state change request is reused.
+  *
+  * 		CAN_ID_STATE_VOTE (6 bytes):
+  * 			uint8_t --> alias
+  * 			uint8_t --> vote (as per StateVote_t enum)
+  * 			uint8_t --> time[4] <-- 4 item array since actually a 32bit int
+  *
+  * 		CAN_ID_STATE_COMMIT (6 bytes):
+  * 			uint8_t --> alias
+  * 			uint8_t --> new_state (as per SystemState_t enum)
+  * 			uint8_t --> time[4] <-- 4 item array since actually a 32bit int
   ******************************************************************************
   */
 
@@ -15,12 +73,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "timers.h"
-
-#if defined(STM32G4xx)
-    #include "stm32g4xx_hal.h" // Will be included by the G4 board's project
-#elif defined(STM32H7xx)
-    #include "stm32h7xx_hal.h" // Will be included by the H7 board's project
-#endif
 
 /*-----------------------------------------------------------
  * Private enums
@@ -72,66 +124,73 @@ TimerHandle_t outgoing_request_vote_timeout_timer;
  * Private function prototypes
  *-----------------------------------------------------------*/
 
-void hydra_state_mgr_request_state_change(SystemState_t new_state);
-StateVote_t hydra_state_mgr_determine_vote(SystemState_t state);
-void hydra_state_mgr_vote();
-void state_mgr_commit_state_change(SystemState_t state);
-void hydra_state_mgr_vote_timeout_callback(TimerHandle_t timer);
+
 
 /*-----------------------------------------------------------
- * Init functions
+ * Public API
  *-----------------------------------------------------------*/
 
-/**
-  * @brief  Initializes the state manager module.
-  */
-void hydra_state_mgr_init(void) {
+void hydra_state_mgr_init(uint8_t _has_position_sensors) {
+	//If this board does not have positional sensors, set all flight-related states to 50% confidence so the board automatically abstains from voting process
+	if (_has_position_sensors == 0) {
+		//We don't have positional sensors
+		hydra_state_update_confidence(SYSTEM_STATE_POWERED_ASCENT, (uint8_t)(STATE_MGR_MAX_CONFIDENCE/2));
+		hydra_state_update_confidence(SYSTEM_STATE_COASTING, (uint8_t)(STATE_MGR_MAX_CONFIDENCE/2));
+		hydra_state_update_confidence(SYSTEM_STATE_APOGEE, (uint8_t)(STATE_MGR_MAX_CONFIDENCE/2));
+		hydra_state_update_confidence(SYSTEM_STATE_DROGUE_DEPLOY, (uint8_t)(STATE_MGR_MAX_CONFIDENCE/2));
+		hydra_state_update_confidence(SYSTEM_STATE_MAIN_DEPLOY, (uint8_t)(STATE_MGR_MAX_CONFIDENCE/2));
+		hydra_state_update_confidence(SYSTEM_STATE_LANDED, (uint8_t)(STATE_MGR_MAX_CONFIDENCE/2));
+	}
+
     // TODO: setup anything CAN related that we need to do
 
     // Create state vote timeout timer
 	outgoing_request_vote_timeout_timer = xTimerCreate("StateVoteTimer", pdMS_TO_TICKS(STATE_MGR_VOTE_RESPONSE_TIMEOUT), pdFALSE, NULL, hydra_state_mgr_vote_timeout_callback);
 }
 
-/*-----------------------------------------------------------
- * External functions
- *-----------------------------------------------------------*/
-
-SystemState_t hydra_state_mgr_get_current_state(void) {
+SystemState_t hydra_state_get_current_state(void) {
 	return current_state;
 }
 
-void hydra_state_mgr_update_confidence(SystemState state, uint8_t confidence) {
-	state_confidences[state] = confidence;
+void hydra_state_update_confidence(SystemState_t _state, uint8_t _confidence) {
+	state_confidences[_state] = (_confidence > (uint8_t)STATE_MGR_MAX_CONFIDENCE) ? (uint8_t)STATE_MGR_MAX_CONFIDENCE : _confidence;
+
+	//check if we should be sending a state change request
+	SystemState_t new_system_state = _hydra_state_confidence_status();
+
+	if (new_system_state != SYSTEM_STATE_NOT_CONFIDENT && new_system_state != current_state) {
+		_hydra_state_send_state_change_request(new_system_state);
+	}
+
 }
 
-/**
-  * @brief  Processes incoming state-related CAN messages.
-  */
-void process_state_message(uint32_t can_id, uint8_t* data, uint8_t len) {
-	switch (can_id) {
+void hydra_state_process_rx(uint32_t _can_id, uint8_t* _data, uint8_t _len) {
+	switch (_can_id) {
 		case (uint32_t)CAN_ID_STATE_REQUEST: {
-			if (len < 6) return;
+			if (_len < 6) return;
 
-			incoming_request.requester_alias = data[0];
-			incoming_request.requested_state = (SystemState_t)data[1];
-			incoming_request.request_id = (data[2] << 24) + (data[3] << 16) + (data[4] << 8) + data[5];
+			// Overwrite incoming_request and vote on the request.
+			// No need to concern ourselves with overwriting an ongoing request since we always vote immediately upon receiving a request
+			incoming_request.requester_alias = _data[0];
+			incoming_request.requested_state = (SystemState_t)_data[1];
+			incoming_request.request_id = (_data[2] << 24) + (_data[3] << 16) + (_data[4] << 8) + _data[5];
 
-			// Get our vote for this state change
-			hydra_state_mgr_vote();
+			// Send our vote for this state change
+			_hydra_state_send_vote();
 			break;
 		}
 
 		case (uint32_t)CAN_ID_STATE_VOTE: {
-			if (len < 3) return;
+			if (_len < 3) return;
 
-			uint32_t request_id = data[0];
-			uint8_t voter_alias = data[1];
-			StateVote_t vote = (StateVote_t)data[2];
+			uint8_t voter_alias = _data[0];
+			StateVote_t vote = (StateVote_t)_data[1];
+			uint32_t request_id = (_data[2] << 24) + (_data[3] << 16) + (_data[4] << 8) + _data[5];
 
 			// Only process votes for the current pending request
 			if (request_id != outgoing_request.request_id) return;
 
-			// Count the vote
+			// If this vote is for our pending request, count it
 			switch (vote) {
 				case VOTE_APPROVE:
 					outgoing_request.private_approval_count++;
@@ -141,43 +200,52 @@ void process_state_message(uint32_t can_id, uint8_t* data, uint8_t len) {
 					break;
 			}
 
+			// We can ignore and abstain votes, but we need to count that we received a vote
 			outgoing_request.private_votes_expected--;
 
-			// Check if we have received enough votes to make a decision
-			if (outgoing_request.requested_state == SYSTEM_STATE_ABORT && outgoing_request.private_approval_count > 0) {
-				//We requested to abort and at least one more board agrees so bypass voting process and abort
-				xTimerStop(outgoing_request_vote_timeout_timer, 0);
-				state_mgr_commit_state_change(outgoing_request.requested_state);
-			} else if (outgoing_request.private_veto_count > STATE_MGR_MAX_VETOES) {
-				// Veto received, cancel the request
-				xTimerStop(outgoing_request_vote_timeout_timer, 0);
-			} else if (outgoing_request.private_votes_expected == 0 && outgoing_request.private_approval_count >= STATE_MGR_MIN_APPROVALS) {
-				// We've received all expected votes, make a call
-				xTimerStop(outgoing_request_vote_timeout_timer, 0);
-				state_mgr_commit_state_change(outgoing_request.requested_state);
-			}
+			//tally votes every time we get a new one, or when the vote timeout timer expires
+			_hydra_state_tally_votes();
 			break;
 		}
 
 		case (uint32_t)CAN_ID_STATE_COMMIT: {
-			if (len < 1) return;
+			if (_len < 1) return;
+
 
 		}
 	}
 }
 
 /*-----------------------------------------------------------
- * State management request functions
+ * Private functions
  *-----------------------------------------------------------*/
+
+SystemState_t _hydra_state_confidence_status(void) {
+	uint8_t low_confidence_tally = 0;
+	SystemState_t highest_confidence_state = SYSTEM_STATE_NOT_READY; //default to this
+
+	for (uint8_t i = 0; i < (uint8_t)HYDRA_STATE_MGR_NUM_STATES; i++) {
+		if (state_confidences[i] < (uint8_t)STATE_MGR_VETO_CONFIDENCE) low_confidence_tally++;
+		else if (state_confidences[i] > (uint8_t)STATE_MGR_APPROVE_CONFIDENCE) {
+			if (state_confidences[i] == current_state) return;
+			highest_confidence_state = (SystemState_t)i;
+		}
+	}
+
+	//continue only if one state has high confidence and ALL others have low confidence
+	if (low_confidence_tally != ((uint8_t)HYDRA_STATE_MGR_NUM_STATES-1)) return SYSTEM_STATE_NOT_CONFIDENT;
+
+	return highest_confidence_state;
+}
 
 /**
   * @brief  Requests a transition to a new system state (initiates voting).
   * @param  new_state: The desired state to transition to.
   */
-void hydra_state_mgr_request_state_change(SystemState_t new_state) { //todo: how do we deal with multiple boards sending state requests at the same time? --> deterministically pick one or the other (prioritize failsafe type requests), maybe logic allows for multiple concurrent requests with minimal changes
+void _hydra_state_send_state_change_request(SystemState_t _new_state) {
     // Create state transition request
 	outgoing_request.requester_alias = hydra_identity_get_alias();
-	outgoing_request.requested_state = new_state;
+	outgoing_request.requested_state = _new_state;
 	outgoing_request.request_id = HAL_GetTick();
 
     // Reset vote counters
@@ -207,39 +275,73 @@ void hydra_state_mgr_request_state_change(SystemState_t new_state) { //todo: how
   * @param  state: What state we should be analyzing
   */
 
-StateVote_t hydra_state_mgr_determine_vote(SystemState_t state) {
+StateVote_t _hydra_state_determine_vote() {
 	/*
 	 * Very simple logic to begin with, might make it cooler later
 	 * This logic relies on the confidence value
 	 */
-	if (state_confidences[state] < STATE_MGR_VETO_CONFIDENCE) return VOTE_VETO;
-	else if (state_confidences[state] > STATE_MGR_APPROVE_CONFIDENCE) return VOTE_APPROVE;
-	else return VOTE_ABSTAIN;
+
+	if (state_confidences[incoming_request.requested_state] < (uint8_t)STATE_MGR_VETO_CONFIDENCE) {
+		return VOTE_VETO;
+	} else if (_hydra_state_confidence_status() == incoming_request.requested_state) {
+		return VOTE_APPROVE;
+	}
+
+	//if we haven't reached a conclusion, abstain
+	return VOTE_ABSTAIN;
 }
 
 /**
   * @brief  Responds to an incoming state request with a vote
-  * @param  vote: The desired vote to send.
   */
-void hydra_state_mgr_vote() {
+void _hydra_state_send_vote(void) {
 	uint8_t data[6];
 
 	data[0] = hydra_identity_get_alias();
 	data[1] = (incoming_request.request_id >> 24) & 0xFF;
 	data[2] = (incoming_request.request_id >> 16) & 0xFF;
 	data[3] = (incoming_request.request_id >> 8) & 0xFF;
-	data[4] = incoming_request.request & 0xFF;
-	data[5] = (uint8_t)hydra_state_mgr_determine_vote(incoming_request.requested_state);
+	data[4] = incoming_request.request_id & 0xFF;
+	data[5] = (uint8_t)_hydra_state_tally_votes();
 
 	hydra_comm_send((uint32_t)CAN_ID_STATE_VOTE, data, sizeof(data), CAN_BUS_A);
+}
+
+//if abort
+xTimerStop(outgoing_request_vote_timeout_timer, 0);
+_hydra_state_commit_state_change();
+
+//if veto
+xTimerStop(outgoing_request_vote_timeout_timer, 0);
+
+//if ok
+xTimerStop(outgoing_request_vote_timeout_timer, 0);
+_hydra_state_commit_state_change();
+
+SystemState_t _hydra_state_tally_votes(void) {
+
+	// Check priority state changes first (abort and veto)
+	if (outgoing_request.requested_state == SYSTEM_STATE_ABORT && outgoing_request.private_approval_count > 0) {
+		//We requested to abort and at least one more board agrees so bypass voting process and abort
+		return outgoing_request.requested_state;
+	} else if (outgoing_request.private_veto_count > STATE_MGR_MAX_VETOES) {
+		// Veto received, cancel the request
+		return current_state;
+	}
+
+	//if we're not aborting or vetoing, check if everybody has voted and see if we have enough approvals to go through with state commit
+	else if (outgoing_request.private_votes_expected == 0 && outgoing_request.private_approval_count >= STATE_MGR_MIN_APPROVALS) {
+		// We've received all expected votes and the system approves
+		return outgoing_request.requested_state;
+	}
 }
 
 /**
   * @brief  Commits a state to the system
   */
-void state_mgr_commit_state_change(SystemState_t state) {
+void _hydra_state_commit_state_change(void) {
 	//Update our own state
-	current_state = state;
+	current_state = outgoing_request.requested_state;
 
 	//Let everybody know about the new state
 	uint8_t data[6];
@@ -260,26 +362,10 @@ void state_mgr_commit_state_change(SystemState_t state) {
  * Timer callbacks
  *-----------------------------------------------------------*/
 
-void hydra_state_mgr_vote_timeout_callback(TimerHandle_t timer) {
+void _hydra_state_vote_timeout_callback(TimerHandle_t _timer) { //why passing timer?
 	// We've waited for votes to come in long enough
 	// If the system as a whole agrees with our state request, commit
 	if (outgoing_request.private_approval_count >= STATE_MGR_MIN_APPROVALS) {
 		state_mgr_commit_state_change(outgoing_request.requested_state);
 	}
-}
-
-/*-----------------------------------------------------------
- * Task functions //TODO: do we want the tasks in here? Maybe each board should have its own task setup elsewhere
- *-----------------------------------------------------------*/
-
-/**
-  * @brief  The main state manager task function.
-  */
-void state_mgr_task(void *argument) {
-    hydra_state_mgr_init();
-
-    for (;;) {
-        // Main task loop - can handle periodic state checks here
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
 }

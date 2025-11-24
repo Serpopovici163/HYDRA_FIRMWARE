@@ -36,17 +36,16 @@ typedef enum {
     // Anytime States
     SYSTEM_STATE_SAFE					= 0x9,
     SYSTEM_STATE_ABORT					= 0xA,
+
+	SYSTEM_STATE_NOT_CONFIDENT			=0xF
 } SystemState_t; //Update HYDRA_STATE_MGR_NUM_STATES if this gets changed!!!
 
 /*-----------------------------------------------------------
  * Public API
  *-----------------------------------------------------------*/
 
-void hydra_state_mgr_init(void);
+void hydra_state_init(void);
 
-SystemState_t hydra_state_mgr_get_current_state(void);
-void hydra_state_mgr_update_confidence(SystemState_t state, uint8_t confidence); //important: confidence can only be 6 bits, max is 63
-void process_state_message(uint8_t* data, uint8_t len);
-
-/* The main state manager task */
-void state_mgr_task(void *argument);
+SystemState_t hydra_state_get_current_state(void);
+void hydra_state_update_confidence(SystemState_t _state, uint8_t _confidence); //important: confidence can only be 6 bits, max is 63
+void hydra_state_process_rx(uint32_t _can_id, uint8_t* _data, uint8_t _len);

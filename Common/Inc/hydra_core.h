@@ -52,6 +52,7 @@ typedef enum {
 
 // Board Type - Used by identity, comms, heartbeat, etc.
 typedef enum {
+	HYDRA_NONE	= 0x00,
     HYDRA_POWER = 0x01,
     HYDRA_NAV   = 0x02,
     HYDRA_LINK  = 0x03,

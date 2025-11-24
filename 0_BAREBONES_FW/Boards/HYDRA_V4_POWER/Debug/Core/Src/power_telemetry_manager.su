@@ -1,0 +1,4 @@
+../Core/Src/power_telemetry_manager.c:29:6:power_telemetry_manager_init	8	static
+../Core/Src/power_telemetry_manager.c:35:6:power_telemetry_manager_toggle_message	16	static
+../Core/Src/power_telemetry_manager.c:48:13:PowerTelemetryTask	16	static
+../Core/Src/power_telemetry_manager.c:61:6:pack_12bit_values	32	static

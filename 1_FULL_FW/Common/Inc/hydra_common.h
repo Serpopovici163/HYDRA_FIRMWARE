@@ -1,0 +1,18 @@
+/**
+  ******************************************************************************
+  * @file    hydra_common.h
+  * @brief   Master include file for the Hydra Avionics Common Library.
+  *          Include this file to get access to the entire Hydra common API.
+  ******************************************************************************
+  */
+
+#pragma once
+
+/* Include all public headers for the Hydra common modules */
+#include "hydra_core.h"         /* Core system types and definitions */
+#include "hydra_can_icd.h"      /* CAN Interface Control Document (IDs) */
+#include "hydra_comm.h"         /* CAN communication layer */
+#include "hydra_health.h"    /* Synchronized heartbeat and status system */
+#include "hydra_identity.h"     /* UUID and alias management */
+#include "hydra_state_mgr_OLD.h"    /* Decentralized state machine */
+#include "hydra_watchdog.h"     /* Hardware watchdog management */
